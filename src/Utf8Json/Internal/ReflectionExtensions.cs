@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -8,6 +9,24 @@ namespace Utf8Json.Internal
 {
     internal static class ReflectionExtensions
     {
+        private class OrderBaseTypesBeforeDerivedTypes : IComparer<Type>
+        {
+            public static readonly OrderBaseTypesBeforeDerivedTypes Instance = new OrderBaseTypesBeforeDerivedTypes();
+
+            private OrderBaseTypesBeforeDerivedTypes()
+            {
+            }
+
+            public int Compare(Type x, Type y)
+            {
+                return
+                    x.IsEquivalentTo(y) ? 0 :
+                    x.IsAssignableFrom(y) ? -1 :
+                    y.IsAssignableFrom(x) ? 1 :
+                    0;
+            }
+        }
+
         public static bool IsNullable(this System.Reflection.TypeInfo type)
         {
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(System.Nullable<>);
@@ -28,7 +47,8 @@ namespace Utf8Json.Internal
 
         public static IEnumerable<PropertyInfo> GetAllProperties(this Type type)
         {
-            return GetAllPropertiesCore(type, new HashSet<string>());
+            return GetAllPropertiesCore(type, new HashSet<string>())
+                .OrderBy(m => m.DeclaringType, OrderBaseTypesBeforeDerivedTypes.Instance);
         }
 
         static IEnumerable<PropertyInfo> GetAllPropertiesCore(Type type, HashSet<string> nameCheck)
